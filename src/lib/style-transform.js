@@ -150,6 +150,10 @@ function transform(prefix, styles, settings = {}) {
   filename = settings.filename
   isSplitRulesEnabled = settings.splitRules
   splitRules = []
+  stylis.set({
+    prefix:
+      typeof settings.vendorPrefix === 'boolean' ? settings.vendorPrefix : true
+  })
 
   const cssString = stylis(prefix, styles)
 
