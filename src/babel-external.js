@@ -4,7 +4,8 @@ import {
   getJSXStyleInfo,
   processCss,
   cssToBabelType,
-  validateExternalExpressions
+  validateExternalExpressions,
+  combinePlugins
 } from './_utils'
 
 const isModuleExports = t.buildMatchMemberExpression('module.exports')
@@ -19,7 +20,9 @@ function processTaggedTemplateExpression({
   path,
   tagName,
   fileInfo,
-  splitRules
+  splitRules,
+  plugins,
+  vendorPrefix
 }) {
   if (path.node.tag.name !== tagName) {
     return
@@ -37,7 +40,9 @@ function processTaggedTemplateExpression({
       ...stylesInfo,
       hash: `${stylesInfo.hash}0`,
       fileInfo,
-      isGlobal: true
+      isGlobal: true,
+      plugins,
+      vendorPrefix
     },
     { splitRules }
   )
@@ -47,7 +52,9 @@ function processTaggedTemplateExpression({
       ...stylesInfo,
       hash: `${stylesInfo.hash}1`,
       fileInfo,
-      isGlobal: false
+      isGlobal: false,
+      plugins,
+      vendorPrefix
     },
     { splitRules }
   )
@@ -126,6 +133,7 @@ function makeHashesAndScopedCssPaths(exportIdentifier, data) {
   })
 }
 
+let plugins
 export const visitor = {
   ImportDeclaration(path, state) {
     const tagName = getTagNameFromImportDeclaration(path)
@@ -137,6 +145,7 @@ export const visitor = {
     path.remove()
   },
   TaggedTemplateExpression(path, state) {
+    const { vendorPrefix } = state.opts
     processTaggedTemplateExpression({
       path,
       tagName: state.jsxTag,
@@ -148,13 +157,25 @@ export const visitor = {
       splitRules:
         typeof state.opts.optimizeForSpeed === 'boolean'
           ? state.opts.optimizeForSpeed
-          : process.env.NODE_ENV === 'production'
+          : process.env.NODE_ENV === 'production',
+      plugins: state.plugins,
+      vendorPrefix: typeof vendorPrefix === 'boolean' ? vendorPrefix : true
     })
   }
 }
 
 export default function() {
   return {
-    visitor
+    Program(path, state) {
+      if (!plugins) {
+        const { sourceMaps, vendorPrefix } = state.opts
+        plugins = combinePlugins(state.opts.plugins, {
+          sourceMaps: sourceMaps || state.file.opts.sourceMaps,
+          vendorPrefix: typeof vendorPrefix === 'boolean' ? vendorPrefix : true
+        })
+      }
+      state.plugins = plugins
+    },
+    ...visitor
   }
 }
