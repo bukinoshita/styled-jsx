@@ -550,3 +550,15 @@ export const processCss = (stylesInfo, options) => {
     expressions: dynamic && expressions
   }
 }
+
+export const booleanOption = opts => {
+  let ret
+  opts.some(opt => {
+    if (typeof opt === 'boolean') {
+      ret = opt
+      return true
+    }
+    return false
+  })
+  return ret
+}

@@ -5,7 +5,8 @@ import {
   processCss,
   cssToBabelType,
   validateExternalExpressions,
-  combinePlugins
+  combinePlugins,
+  booleanOption
 } from './_utils'
 
 const isModuleExports = t.buildMatchMemberExpression('module.exports')
@@ -145,21 +146,21 @@ export const visitor = {
     path.remove()
   },
   TaggedTemplateExpression(path, state) {
-    const { vendorPrefix } = state.opts
+    const { vendorPrefix, sourceMaps } = state.opts
     processTaggedTemplateExpression({
       path,
       tagName: state.jsxTag,
       fileInfo: {
         file: state.file,
         sourceFileName: state.file.opts.sourceFileName,
-        sourceMaps: state.file.opts.sourceMaps
+        sourceMaps
       },
       splitRules:
         typeof state.opts.optimizeForSpeed === 'boolean'
           ? state.opts.optimizeForSpeed
           : process.env.NODE_ENV === 'production',
       plugins: state.plugins,
-      vendorPrefix: typeof vendorPrefix === 'boolean' ? vendorPrefix : true
+      vendorPrefix
     })
   }
 }
@@ -167,11 +168,22 @@ export const visitor = {
 export default function() {
   return {
     Program(path, state) {
+      const vendorPrefix = booleanOption([
+        state.opts.vendorPrefix,
+        state.file.opts.vendorPrefix
+      ])
+      state.opts.vendorPrefix =
+        typeof vendorPrefix === 'boolean' ? vendorPrefix : true
+      const sourceMaps = booleanOption([
+        state.opts.sourceMaps,
+        state.file.opts.sourceMaps
+      ])
+      state.opts.sourceMaps = Boolean(sourceMaps)
+
       if (!plugins) {
-        const { sourceMaps, vendorPrefix } = state.opts
         plugins = combinePlugins(state.opts.plugins, {
-          sourceMaps: sourceMaps || state.file.opts.sourceMaps,
-          vendorPrefix: typeof vendorPrefix === 'boolean' ? vendorPrefix : true
+          sourceMaps: state.opts.sourceMaps,
+          vendorPrefix: state.opts.vendorPrefix
         })
       }
       state.plugins = plugins
